@@ -1,38 +1,63 @@
 export default function Home() {
   return (
-    <div className="text-center mt-20 fade">
-      <h2 className="text-5xl font-bold mb-6 tracking-wide neon float">
-        Universo Vexon
-      </h2>
+    <div className="relative min-h-screen">
 
-      <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-        Mergulhe no cosmos sombrio e arcano de <strong>Vexon</strong>.  
-        Descubra segredos antigos, forças proibidas e destinos entrelaçados.
-      </p>
+      {/* BACKDROP GRADIENT + TEXTURA */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,0,255,0.07),_transparent_70%)] opacity-60 pointer-events-none" />
+      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
 
-      <div className="flex justify-center gap-6 mt-10">
-        <a
-          href="/livros"
-          className="bg-[var(--accent-red)] glow-hover px-8 py-3 rounded-lg font-semibold transition"
+      {/* HERO */}
+      <section className="relative text-center mt-28 px-6 fade">
+
+        {/* GLOW DE FUNDO */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-20 w-[550px] h-[550px]
+                        bg-fuchsia-600/20 blur-[110px] rounded-full -z-10" />
+
+        {/* TÍTULO COM GLITCH (usa data-text para pseudo elements) */}
+        <h1
+          className="text-6xl md:text-7xl font-bold tracking-wide text-white select-none
+                     drop-shadow-[0_0_8px_rgba(255,0,255,0.28)] glitch"
+          data-text="UNIVERSO VEXON"
         >
-          Ler os Livros
-        </a>
+          UNIVERSO VEXON
+        </h1>
 
-        <a
-          href="/wiki"
-          className="border border-[var(--accent-magenta)] px-8 py-3 rounded-lg font-semibold glow-hover transition"
-        >
-          Wiki do Universo
-        </a>
-      </div>
+        {/* SUBTÍTULO (mais destaque, mas suave) */}
+        <p className="vexon-subtitle">
+  Explore o cosmos sombrio e arcano de 
+  <strong className="vexon-subtitle-vexon"> Vexon</strong>.
+  Mistérios proibidos, forças esquecidas e destinos entrelaçados te aguardam.
+</p>
 
-      <section className="mt-24 max-w-4xl mx-auto text-left fade">
-        <h3 className="text-3xl font-bold mb-4 neon">Sobre Vexon</h3>
-        <p className="text-gray-300 leading-relaxed text-lg">
-          Vexon é um universo marcado por energia arcana e forças ancestrais.
-          Cada facção disputa segredos proibidos, cada personagem carrega
-          cicatrizes do impossível, e o próprio destino pode ser redesenhado.
-        </p>
+
+       <div className="flex justify-center gap-8 mt-14">
+
+  <a href="/livros" className="vexon-btn" aria-label="Ler os Livros">
+    Ler os Livros
+  </a>
+
+  <a href="/wiki" className="vexon-btn" aria-label="Wiki do Universo">
+    Wiki do Universo
+  </a>
+
+</div>
+
+
+      </section>
+
+      {/* SEÇÃO SOBRE */}
+      <section className="mt-32 max-w-5xl mx-auto px-6 fade">
+        <h3 className="text-4xl font-bold mb-6 neon">Sobre Vexon</h3>
+
+        <div className="p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md
+                        shadow-[0_0_25px_rgba(255,0,255,0.12)]">
+          <p className="text-gray-300 text-lg leading-relaxed">
+            Vexon é um universo moldado por energia arcana, guerras silenciosas e poderes
+            que desafiam o impossível. Cada facção luta por segredos proibidos, cada
+            personagem carrega cicatrizes profundas, e cada destino pode alterar o curso
+            da própria realidade.
+          </p>
+        </div>
       </section>
     </div>
   );

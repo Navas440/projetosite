@@ -10,10 +10,9 @@
   --accent-red: #ff0040;
   --accent-magenta: #c800ff;
   --accent-purple: #8b00ff;
-  --accent-dark: #2b013f;
 }
 
-/* Tema inline para Tailwind */
+/* Tailwind inline */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -25,7 +24,7 @@
 ================================ */
 body {
   margin: 0;
-  background: radial-gradient(circle at top, #2b013f 0%, #0a000f 60%);
+  background: radial-gradient(circle at top, #2b013f 0%, #0a000f 70%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: hidden;
@@ -44,47 +43,42 @@ a:hover {
 }
 
 /* ================================
-   NEON GERAL
+   NEON — GERAL
 ================================ */
 .neon {
   text-shadow:
-    0 0 10px var(--accent-magenta),
-    0 0 20px var(--accent-magenta),
-    0 0 30px var(--accent-purple);
+    0 0 8px var(--accent-magenta),
+    0 0 18px var(--accent-purple);
 }
 
+/* Glow neon padrão */
 .neon-text {
   text-shadow:
-    0 0 5px #ff00ff,
-    0 0 10px #ff00ff,
-    0 0 25px #ff0077,
-    0 0 45px #ff0033;
-  animation: neonPulse 2.5s infinite alternate ease-in-out;
+    0 0 6px rgba(255, 0, 255, 0.6),
+    0 0 16px rgba(255, 0, 255, 0.4);
+  animation: neonPulse 2.8s ease-in-out infinite alternate;
 }
 
+/* Neon equilibrado (menos forte que o seu original) */
 @keyframes neonPulse {
   0% {
     text-shadow:
-      0 0 5px #ff00ff,
-      0 0 15px #ff00ff,
-      0 0 25px #ff0077,
-      0 0 40px #ff0033;
+      0 0 5px rgba(255, 0, 255, 0.4),
+      0 0 15px rgba(255, 0, 255, 0.3);
   }
   100% {
     text-shadow:
-      0 0 10px #ff33ff,
-      0 0 25px #ff00ff,
-      0 0 40px #ff0099,
-      0 0 70px #ff0066;
+      0 0 10px rgba(255, 80, 255, 0.55),
+      0 0 25px rgba(255, 0, 180, 0.45);
   }
 }
 
 /* ================================
-   ANIMAÇÕES
+   ANIMAÇÕES DE MOVIMENTO
 ================================ */
 @keyframes float {
   0%   { transform: translateY(0px); }
-  50%  { transform: translateY(-12px); }
+  50%  { transform: translateY(-10px); }
   100% { transform: translateY(0px); }
 }
 .float {
@@ -99,34 +93,35 @@ a:hover {
   animation: fadeIn 1.2s ease forwards;
 }
 
+/* Hover glow */
 .glow-hover:hover {
-  box-shadow: 0 0 20px var(--accent-magenta);
-  transform: scale(1.05);
-  transition: 0.3s;
+  box-shadow: 0 0 14px var(--accent-magenta);
+  transform: scale(1.04);
+  transition: 0.25s;
 }
 
 /* ================================
-   SCANLINE RETRÔ
+   SCANLINE
 ================================ */
 .scanline {
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(255, 0, 255, 0.08) 0px,
-    rgba(255, 0, 255, 0.08) 2px,
+    rgba(255, 0, 255, 0.05) 0px,
+    rgba(255, 0, 255, 0.05) 2px,
     transparent 3px,
     transparent 6px
   );
   mix-blend-mode: overlay;
-  opacity: 0.15;
+  opacity: 0.14;
   pointer-events: none;
-  animation: scanMove 12s linear infinite;
+  animation: scanMove 14s linear infinite;
 }
 
 @keyframes scanMove {
-  0%   { transform: translateY(-20%); }
-  100% { transform: translateY(20%); }
+  0% { transform: translateY(-15%); }
+  100% { transform: translateY(15%); }
 }
 
 /* ================================
@@ -137,47 +132,232 @@ a:hover {
   inset: 0;
   overflow: hidden;
   background: radial-gradient(circle,
-    rgba(255,0,255,0.25),
+    rgba(255, 0, 255, 0.18),
     transparent 70%
   );
-  animation: particleFlux 6s infinite linear;
-  opacity: 0.35;
-  filter: blur(6px);
+  animation: particleFlux 7s linear infinite;
+  opacity: 0.32;
+  filter: blur(7px);
   pointer-events: none;
 }
 
 @keyframes particleFlux {
-  0% {
-    transform: translateX(-10%) translateY(-10%) rotate(0deg);
-  }
-  100% {
-    transform: translateX(10%) translateY(10%) rotate(360deg);
-  }
+  0%   { transform: translateX(-10%) translateY(-10%) rotate(0deg); }
+  100% { transform: translateX(10%) translateY(10%) rotate(360deg); }
 }
 
 /* ================================
-   GLOW ELÉTRICO DO HEADER
+   HEADER GLOW ELÉTRICO
 ================================ */
 .header-energy {
   position: relative;
   box-shadow:
-    inset 0 0 25px rgba(255, 0, 255, 0.6),
-    inset 0 0 50px rgba(255, 0, 150, 0.4),
-    0 0 25px rgba(255, 0, 255, 0.7);
+    inset 0 0 20px rgba(255, 0, 255, 0.35),
+    inset 0 0 45px rgba(255, 0, 180, 0.25),
+    0 0 25px rgba(255, 0, 255, 0.4);
   animation: electricGlow 4s ease-in-out infinite alternate;
 }
 
 @keyframes electricGlow {
   0% {
     box-shadow:
-      inset 0 0 20px rgba(255, 0, 255, 0.3),
-      inset 0 0 55px rgba(255, 0, 150, 0.2),
-      0 0 20px rgba(255, 0, 255, 0.5);
+      inset 0 0 15px rgba(255, 0, 255, 0.2),
+      inset 0 0 35px rgba(255, 0, 180, 0.15),
+      0 0 15px rgba(255, 0, 255, 0.25);
   }
   100% {
     box-shadow:
-      inset 0 0 35px rgba(255, 0, 255, 0.7),
-      inset 0 0 90px rgba(255, 0, 150, 0.5),
-      0 0 40px rgba(255, 0, 255, 0.9);
+      inset 0 0 30px rgba(255, 0, 255, 0.45),
+      inset 0 0 70px rgba(255, 0, 180, 0.30),
+      0 0 35px rgba(255, 0, 255, 0.55);
   }
+}
+
+/* ================================
+   GLITCH (corrigido)
+================================ */
+.glitch {
+  position: relative;
+  display: inline-block;
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.glitch::before {
+  color: #ff00ff;
+  transform: translate(2px, -2px);
+}
+.glitch::after {
+  color: #00ffff;
+  transform: translate(-2px, 2px);
+}
+
+/* Holograma */
+@keyframes holo {
+  0%   { filter: hue-rotate(0deg) brightness(1); }
+  50%  { filter: hue-rotate(25deg) brightness(1.25); }
+  100% { filter: hue-rotate(0deg) brightness(1); }
+}
+/* -------------------------
+   GLITCH VEXON (vermelho + roxo)
+   Aplica-se ao elemento com class="glitch" e attribute data-text
+   Ex.: <h1 class="glitch" data-text="UNIVERSO VEXON">UNIVERSO VEXON</h1>
+--------------------------*/
+.glitch {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* pseudo layers */
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  clip-path: inset(0);
+  mix-blend-mode: screen;
+  opacity: 0.8;
+}
+
+/* camada vermelha */
+.glitch::before {
+  color: #ff003c;
+  transform: translate(-4px, 0);
+  filter: blur(0.6px) saturate(1.1);
+  animation: glitchRed 1.6s infinite linear;
+}
+
+/* camada roxa */
+.glitch::after {
+  color: #a200ff;
+  transform: translate(4px, 0);
+  filter: blur(0.3px) saturate(1.05);
+  animation: glitchPurple 2s infinite linear;
+}
+
+/* movimentos sutis dos layers */
+@keyframes glitchRed {
+  0%   { transform: translate(-4px, 0) skewX(0deg); opacity: 0.85; }
+  20%  { transform: translate(-7px, -2px) skewX(-0.6deg); opacity: 0.7; }
+  40%  { transform: translate(-4px, 1px) skewX(0.3deg); opacity: 0.9; }
+  60%  { transform: translate(-6px, -1px) skewX(-0.4deg); opacity: 0.75; }
+  100% { transform: translate(-4px, 0) skewX(0deg); opacity: 0.85; }
+}
+
+@keyframes glitchPurple {
+  0%   { transform: translate(4px, 0) skewX(0deg); opacity: 0.8; }
+  20%  { transform: translate(7px, 2px) skewX(0.5deg); opacity: 0.65; }
+  40%  { transform: translate(3px, -1px) skewX(-0.3deg); opacity: 0.9; }
+  60%  { transform: translate(5px, 1px) skewX(0.2deg); opacity: 0.7; }
+  100% { transform: translate(4px, 0) skewX(0deg); opacity: 0.8; }
+}
+
+/* sutil brilho holográfico no elemento base (titulo) */
+.glitch {
+  text-shadow:
+    0 0 8px rgba(162, 0, 255, 0.16),
+    0 0 18px rgba(255, 0, 200, 0.08);
+}
+
+/* ================================
+   SUBTÍTULO VEXON – Glow suave
+================================ */
+.vexon-subtitle {
+  text-align: center;
+  max-width: 46rem;
+  margin: 2rem auto 0;
+  
+  font-size: 1.3rem;
+  line-height: 1.75rem;
+  font-weight: 300;
+
+  color: #e0d4ff;
+
+  /* Glow cósmico suave */
+  text-shadow:
+    0 0 4px rgba(180, 0, 255, 0.25),
+    0 0 10px rgba(255, 30, 90, 0.15);
+  
+  transition: 240ms ease;
+}
+
+/* Palavra "Vexon" com destaque neon */
+.vexon-subtitle-vexon {
+  font-weight: 600;
+
+  color: #ff69f9;
+
+  /* Glow mais forte */
+  text-shadow:
+    0 0 6px rgba(255, 40, 180, 0.6),
+    0 0 14px rgba(160, 0, 255, 0.45),
+    0 0 26px rgba(255, 0, 110, 0.35);
+
+  cursor: default;
+}
+
+/* Hover que acende apenas o nome Vexon */
+.vexon-subtitle-vexon:hover {
+  color: #ff8dfd;
+  text-shadow:
+    0 0 10px rgba(255, 70, 200, 0.9),
+    0 0 22px rgba(160, 0, 255, 0.7),
+    0 0 36px rgba(255, 0, 110, 0.6);
+}
+
+/* Responsividade */
+@media (max-width: 640px) {
+  .vexon-subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6rem;
+  }
+}
+
+
+/* ================================
+   BOTÕES VEXON (Preenchidos)
+================================ */
+.vexon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+
+  padding: 0.9rem 2.2rem;
+  border-radius: 0.75rem;
+  border: none;
+
+  background: linear-gradient(135deg, #7a00ff, #ff003c);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+
+  cursor: pointer;
+  transition: 260ms ease;
+  text-decoration: none;
+
+  box-shadow: 0 0 14px rgba(255, 0, 90, 0.45);
+}
+
+.vexon-btn:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 0 24px rgba(255, 0, 140, 0.75),
+    0 0 45px rgba(120, 0, 255, 0.95);
 }
