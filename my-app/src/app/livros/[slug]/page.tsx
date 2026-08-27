@@ -7,12 +7,8 @@ export function generateStaticParams() {
   return books.map((book) => ({ slug: book.slug }));
 }
 
-export default async function BookDetail({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
+export default async function BookDetail(props: PageProps<"/livros/[slug]">) {
+  const { slug } = await props.params;
   const book = getBookBySlug(slug);
   if (!book) notFound();
 

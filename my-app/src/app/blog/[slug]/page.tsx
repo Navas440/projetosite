@@ -14,12 +14,8 @@ export function generateStaticParams() {
   return posts.map((post) => ({ slug: post.slug }));
 }
 
-export default async function PostDetail({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
+export default async function PostDetail(props: PageProps<"/blog/[slug]">) {
+  const { slug } = await props.params;
   const post = getPostBySlug(slug);
   if (!post) notFound();
 

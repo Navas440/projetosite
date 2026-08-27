@@ -8,12 +8,8 @@ export function generateStaticParams() {
   );
 }
 
-export default async function ChapterPage({
-  params,
-}: {
-  params: Promise<{ slug: string; chapter: string }>;
-}) {
-  const { slug, chapter: chapterSlug } = await params;
+export default async function ChapterPage(props: PageProps<"/livros/[slug]/[chapter]">) {
+  const { slug, chapter: chapterSlug } = await props.params;
   const book = getBookBySlug(slug);
   const chapter = book?.chapters.find((c) => c.slug === chapterSlug);
   if (!book || !chapter) notFound();
