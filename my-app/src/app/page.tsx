@@ -1,63 +1,79 @@
+import Link from "next/link";
+import { books, getFeaturedBook } from "@/data/books";
+import { posts } from "@/data/posts";
+import { updates } from "@/data/updates";
+import BookCard from "@/components/BookCard";
+import PostsCarousel from "@/components/PostsCarousel";
+import UpdatesFeed from "@/components/UpdatesFeed";
+import BookCover from "@/components/BookCover";
+
 export default function Home() {
+  const featured = getFeaturedBook();
+
   return (
-    <div className="relative min-h-screen">
+    <div className="relative">
+      {/* HERO BANNER */}
+      <section className="relative h-[70vh] min-h-[420px] w-full overflow-hidden fade">
+        <BookCover book={featured} className="absolute inset-0 w-full h-full" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
 
-      {/* BACKDROP GRADIENT + TEXTURA */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,0,255,0.07),_transparent_70%)] opacity-60 pointer-events-none" />
-      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+        <div className="relative z-10 h-full flex flex-col justify-end px-8 md:px-16 pb-16 max-w-3xl">
+          <span className="text-fuchsia-400 text-sm font-semibold tracking-widest uppercase mb-3">
+            Em lançamento
+          </span>
+          <h1
+            className="text-5xl md:text-7xl font-bold tracking-wide text-white glitch"
+            data-text={featured.title.toUpperCase()}
+          >
+            {featured.title.toUpperCase()}
+          </h1>
+          <p className="text-xl text-gray-200 mt-4 max-w-xl">{featured.tagline}</p>
 
-      {/* HERO */}
-      <section className="relative text-center mt-28 px-6 fade">
-
-        {/* GLOW DE FUNDO */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-20 w-[550px] h-[550px]
-                        bg-fuchsia-600/20 blur-[110px] rounded-full -z-10" />
-
-        {/* TÍTULO COM GLITCH (usa data-text para pseudo elements) */}
-        <h1
-          className="text-6xl md:text-7xl font-bold tracking-wide text-white select-none
-                     drop-shadow-[0_0_8px_rgba(255,0,255,0.28)] glitch"
-          data-text="UNIVERSO VEXON"
-        >
-          UNIVERSO VEXON
-        </h1>
-
-        {/* SUBTÍTULO (mais destaque, mas suave) */}
-        <p className="vexon-subtitle">
-  Explore o cosmos sombrio e arcano de 
-  <strong className="vexon-subtitle-vexon"> Vexon</strong>.
-  Mistérios proibidos, forças esquecidas e destinos entrelaçados te aguardam.
-</p>
-
-
-       <div className="flex justify-center gap-8 mt-14">
-
-  <a href="/livros" className="vexon-btn" aria-label="Ler os Livros">
-    Ler os Livros
-  </a>
-
-  <a href="/wiki" className="vexon-btn" aria-label="Wiki do Universo">
-    Wiki do Universo
-  </a>
-
-</div>
-
-
+          <div className="flex flex-wrap gap-4 mt-8">
+            <Link href={`/livros/${featured.slug}`} className="vexon-btn">
+              Ler Sinopse
+            </Link>
+            <Link
+              href={`/livros/${featured.slug}#capitulos`}
+              className="vexon-btn"
+              style={{ background: "transparent", border: "2px solid #ff00ff" }}
+            >
+              Ver Capítulos
+            </Link>
+          </div>
+        </div>
       </section>
 
-      {/* SEÇÃO SOBRE */}
-      <section className="mt-32 max-w-5xl mx-auto px-6 fade">
-        <h3 className="text-4xl font-bold mb-6 neon">Sobre Vexon</h3>
-
-        <div className="p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md
-                        shadow-[0_0_25px_rgba(255,0,255,0.12)]">
-          <p className="text-gray-300 text-lg leading-relaxed">
-            Vexon é um universo moldado por energia arcana, guerras silenciosas e poderes
-            que desafiam o impossível. Cada facção luta por segredos proibidos, cada
-            personagem carrega cicatrizes profundas, e cada destino pode alterar o curso
-            da própria realidade.
-          </p>
+      {/* ÚLTIMOS POSTS */}
+      <section className="mt-24 px-6 md:px-16 fade">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold neon">Últimos Posts</h2>
+          <Link href="/blog" className="text-sm text-fuchsia-400 hover:text-fuchsia-300">
+            Ver todos →
+          </Link>
         </div>
+        <PostsCarousel posts={posts} />
+      </section>
+
+      {/* MEUS LIVROS */}
+      <section className="mt-28 px-6 md:px-16 fade">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold neon">Meus Livros</h2>
+          <Link href="/livros" className="text-sm text-fuchsia-400 hover:text-fuchsia-300">
+            Ver todos →
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {books.map((book) => (
+            <BookCard key={book.slug} book={book} />
+          ))}
+        </div>
+      </section>
+
+      {/* ÚLTIMAS ATUALIZAÇÕES */}
+      <section className="mt-28 mb-24 px-6 md:px-16 max-w-3xl mx-auto fade">
+        <h2 className="text-3xl font-bold neon mb-6">Últimas Atualizações</h2>
+        <UpdatesFeed updates={updates} />
       </section>
     </div>
   );

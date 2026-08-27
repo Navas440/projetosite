@@ -173,31 +173,6 @@ a:hover {
   }
 }
 
-/* ================================
-   GLITCH (corrigido)
-================================ */
-.glitch {
-  position: relative;
-  display: inline-block;
-}
-.glitch::before,
-.glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  left: 0;
-  top: 0;
-  opacity: 0.6;
-  pointer-events: none;
-}
-.glitch::before {
-  color: #ff00ff;
-  transform: translate(2px, -2px);
-}
-.glitch::after {
-  color: #00ffff;
-  transform: translate(-2px, 2px);
-}
-
 /* Holograma */
 @keyframes holo {
   0%   { filter: hue-rotate(0deg) brightness(1); }
