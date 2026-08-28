@@ -17,17 +17,32 @@ model Usuario {
   nome      String
   email     String   @unique
   senhaHash String
+  isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 }
 
 model Livro {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
+  id        Int        @id @default(autoincrement())
+  slug      String     @unique
   title     String
   tagline   String
   synopsis  String
   gradient  String
   progress  Int
-  featured  Boolean  @default(false)
+  featured  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  capitulos Capitulo[]
+}
+
+model Capitulo {
+  id        Int      @id @default(autoincrement())
+  slug      String
+  title     String
+  excerpt   String
+  order     Int
+  livroId   Int
+  livro     Livro    @relation(fields: [livroId], references: [id])
   createdAt DateTime @default(now())
+
+  @@unique([livroId, slug])
 }

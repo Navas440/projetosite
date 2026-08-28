@@ -1,4 +1,32 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { login, salvarToken, USER_TOKEN_KEY } from "@/lib/api";
+
 export default function Login() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setCarregando(true);
+
+    try {
+      const { token } = await login(email, senha);
+      salvarToken(USER_TOKEN_KEY, token);
+      router.push("/");
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao entrar");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
   return (
     <div className="relative min-h-screen flex items-center justify-center px-6 fade">
       <div className="w-full max-w-md p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md
@@ -8,7 +36,7 @@ export default function Login() {
           Entre no <strong className="vexon-subtitle-vexon">Universo Vexon</strong>
         </p>
 
-        <form className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="text-sm text-gray-300">
               Email
@@ -16,6 +44,8 @@ export default function Login() {
             <input
               id="email"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               className="px-4 py-3 rounded-lg bg-black/40 border border-fuchsia-500/40 text-white
                          placeholder:text-gray-500 focus:outline-none focus:border-fuchsia-400"
@@ -29,14 +59,18 @@ export default function Login() {
             <input
               id="password"
               type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
               placeholder="••••••••"
               className="px-4 py-3 rounded-lg bg-black/40 border border-fuchsia-500/40 text-white
                          placeholder:text-gray-500 focus:outline-none focus:border-fuchsia-400"
             />
           </div>
 
-          <button type="submit" className="vexon-btn mt-4">
-            Entrar
+          {erro && <p className="text-red-400 text-sm text-center">{erro}</p>}
+
+          <button type="submit" disabled={carregando} className="vexon-btn mt-4 disabled:opacity-50">
+            {carregando ? "Entrando..." : "Entrar"}
           </button>
         </form>
 

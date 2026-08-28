@@ -4,11 +4,8 @@ import "dotenv/config";
 import { prisma } from "./db";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET não está definida no .env");
-}
+import { JWT_SECRET } from "./env";
+import { requireAdmin } from "./authAdmin";
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
@@ -76,7 +73,55 @@ app.post("/login", async (req: Request, res: Response) => {
     { expiresIn: "7d" }
   );
 
-  res.json({ token, usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email } });
+  res.json({
+    token,
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin },
+  });
+});
+
+app.post("/admin/livros", requireAdmin, async (req: Request, res: Response) => {
+  const { slug, title, tagline, synopsis, gradient, progress, featured } = req.body;
+
+  if (!slug || !title || !tagline || !synopsis || !gradient || progress === undefined) {
+    return res.status(400).json({ erro: "Preencha todos os campos" });
+  }
+
+  const livroExiste = await prisma.livro.findUnique({ where: { slug } });
+  if (livroExiste) {
+    return res.status(409).json({ erro: "Já existe um livro com esse slug" });
+  }
+
+  const livro = await prisma.livro.create({
+    data: { slug, title, tagline, synopsis, gradient, progress, featured: !!featured },
+  });
+
+  res.status(201).json(livro);
+});
+
+app.post("/admin/livros/:slug/capitulos", requireAdmin, async (req: Request, res: Response) => {
+  const slugLivro = req.params.slug as string;
+  const { slug, title, excerpt } = req.body;
+
+  if (!slug || !title || !excerpt) {
+    return res.status(400).json({ erro: "Preencha todos os campos" });
+  }
+
+  const livro = await prisma.livro.findUnique({ where: { slug: slugLivro } });
+  if (!livro) {
+    return res.status(404).json({ erro: "Livro não encontrado" });
+  }
+
+  const capitulos = await prisma.capitulo.findMany({ where: { livroId: livro.id } });
+  const capituloExiste = capitulos.some((c) => c.slug === slug);
+  if (capituloExiste) {
+    return res.status(409).json({ erro: "Já existe um capítulo com esse slug nesse livro" });
+  }
+
+  const capitulo = await prisma.capitulo.create({
+    data: { slug, title, excerpt, order: capitulos.length + 1, livroId: livro.id },
+  });
+
+  res.status(201).json(capitulo);
 });
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
