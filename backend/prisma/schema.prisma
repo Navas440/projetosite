@@ -12,6 +12,14 @@ datasource db {
   provider = "postgresql"
 }
 
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  createdAt DateTime @default(now())
+}
+
 model Livro {
   id        Int      @id @default(autoincrement())
   slug      String   @unique
