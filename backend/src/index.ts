@@ -6,10 +6,20 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "./env";
 import { requireAdmin } from "./authAdmin";
+import rateLimit from "express-rate-limit";
+import { aplicarPepper } from "./pepper";
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json());
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 60 minutos
+  limit: 10, // 5 tentativas por IP nesse período
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { erro: "Muitas tentativas. Tente novamente em 1 hora." },
+});
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ status: "Backend rodando" });
@@ -20,7 +30,7 @@ app.get("/livros", async (req: Request, res: Response) => {
   res.json(livros);
 });
 
-app.post("/cadastro", async (req: Request, res: Response) => {
+app.post("/cadastro", authLimiter, async (req: Request, res: Response) => {
   const { nome, email, senha } = req.body;
 
   if (!nome || !email || !senha) {
@@ -36,12 +46,13 @@ app.post("/cadastro", async (req: Request, res: Response) => {
     return res.status(409).json({ erro: "Email já cadastrado" });
   }
 
-  const senhaHash = await argon2.hash(senha, {
-    type: argon2.argon2id,
-    memoryCost: 19456,
-    timeCost: 2,
-    parallelism: 1,
-  });
+const senhaComPepper = aplicarPepper(senha);
+const senhaHash = await argon2.hash(senhaComPepper, {
+  type: argon2.argon2id,
+  memoryCost: 19456,
+  timeCost: 2,
+  parallelism: 1,
+});
 
   const usuario = await prisma.usuario.create({
     data: { nome, email, senhaHash },
@@ -50,7 +61,7 @@ app.post("/cadastro", async (req: Request, res: Response) => {
   res.status(201).json({ id: usuario.id, nome: usuario.nome, email: usuario.email });
 });
 
-app.post("/login", async (req: Request, res: Response) => {
+app.post("/login", authLimiter, async (req: Request, res: Response) => {
   const { email, senha } = req.body;
 
   if (!email || !senha) {
@@ -62,7 +73,8 @@ app.post("/login", async (req: Request, res: Response) => {
     return res.status(401).json({ erro: "Email ou senha inválidos" });
   }
 
-  const senhaCorreta = await argon2.verify(usuario.senhaHash, senha);
+ const senhaComPepper = aplicarPepper(senha);
+ const senhaCorreta = await argon2.verify(usuario.senhaHash, senhaComPepper);
   if (!senhaCorreta) {
     return res.status(401).json({ erro: "Email ou senha inválidos" });
   }
