@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, salvarToken, USER_TOKEN_KEY } from "@/lib/api";
+import { login } from "@/lib/api";
 
 export default function Login() {
   const router = useRouter();
@@ -17,8 +17,7 @@ export default function Login() {
     setCarregando(true);
 
     try {
-      const { token } = await login(email, senha);
-      salvarToken(USER_TOKEN_KEY, token);
+      await login(email, senha);
       router.push("/");
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao entrar");

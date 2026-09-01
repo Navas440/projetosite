@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, salvarToken, ADMIN_TOKEN_KEY } from "@/lib/api";
+import { login } from "@/lib/api";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -17,12 +17,11 @@ export default function AdminLogin() {
     setCarregando(true);
 
     try {
-      const { token, usuario } = await login(email, senha);
+      const { usuario } = await login(email, senha);
       if (!usuario.isAdmin) {
         setErro("Essa conta não tem acesso de administrador.");
         return;
       }
-      salvarToken(ADMIN_TOKEN_KEY, token);
       router.push("/admin");
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao entrar");

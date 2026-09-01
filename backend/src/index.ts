@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import "dotenv/config";
 import { prisma } from "./db";
 import argon2 from "argon2";
@@ -10,8 +11,15 @@ import rateLimit from "express-rate-limit";
 import { aplicarPepper } from "./pepper";
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:3000", credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
+
+const cookieOptions = {
+  httpOnly: true as const,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict" as const,
+};
 
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 60 minutos
@@ -85,10 +93,20 @@ app.post("/login", authLimiter, async (req: Request, res: Response) => {
     { expiresIn: "7d" }
   );
 
+  res.cookie("token", token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
   res.json({
-    token,
     usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin },
   });
+});
+
+app.post("/logout", (req: Request, res: Response) => {
+  res.clearCookie("token", cookieOptions);
+  res.status(204).end();
+});
+
+app.get("/admin/me", requireAdmin, (req: Request, res: Response) => {
+  const usuario = req.usuario!;
+  res.json({ id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin });
 });
 
 app.post("/admin/livros", requireAdmin, async (req: Request, res: Response) => {

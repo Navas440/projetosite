@@ -1,8 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-export const ADMIN_TOKEN_KEY = "admin_token";
-export const USER_TOKEN_KEY = "user_token";
-
 export interface Usuario {
   id: number;
   nome: string;
@@ -11,7 +8,6 @@ export interface Usuario {
 }
 
 interface LoginResponse {
-  token: string;
   usuario: Usuario;
 }
 
@@ -60,6 +56,7 @@ async function parseErro(res: Response): Promise<string> {
 export async function login(email: string, senha: string): Promise<LoginResponse> {
   const res = await fetch(`${API_URL}/login`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, senha }),
   });
@@ -67,9 +64,20 @@ export async function login(email: string, senha: string): Promise<LoginResponse
   return res.json();
 }
 
+export async function logout(): Promise<void> {
+  await fetch(`${API_URL}/logout`, { method: "POST", credentials: "include" });
+}
+
+export async function verificarAdmin(): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/admin/me`, { credentials: "include" });
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
 export async function cadastrar(dados: NovoUsuario): Promise<Usuario> {
   const res = await fetch(`${API_URL}/cadastro`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
@@ -83,38 +91,24 @@ export async function listarLivros(): Promise<Livro[]> {
   return res.json();
 }
 
-export async function criarLivro(token: string, dados: NovoLivro): Promise<Livro> {
+export async function criarLivro(dados: NovoLivro): Promise<Livro> {
   const res = await fetch(`${API_URL}/admin/livros`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
 
-export async function criarCapitulo(
-  token: string,
-  slugLivro: string,
-  dados: NovoCapitulo
-) {
+export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo) {
   const res = await fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
-}
-
-export function salvarToken(chave: string, token: string) {
-  localStorage.setItem(chave, token);
-}
-
-export function obterToken(chave: string): string | null {
-  return localStorage.getItem(chave);
-}
-
-export function limparToken(chave: string) {
-  localStorage.removeItem(chave);
 }

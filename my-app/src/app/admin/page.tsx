@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ADMIN_TOKEN_KEY,
   criarCapitulo,
   criarLivro,
-  limparToken,
   listarLivros,
-  obterToken,
+  logout,
+  verificarAdmin,
   type Livro,
 } from "@/lib/api";
 
@@ -18,7 +17,7 @@ const inputClass =
 
 export default function AdminPainel() {
   const router = useRouter();
-  const [autorizado] = useState(() => typeof window !== "undefined" && !!obterToken(ADMIN_TOKEN_KEY));
+  const [autorizado, setAutorizado] = useState<boolean | null>(null);
   const [livros, setLivros] = useState<Livro[]>([]);
 
   const [novoLivro, setNovoLivro] = useState({
@@ -36,27 +35,31 @@ export default function AdminPainel() {
   const [mensagemCapitulo, setMensagemCapitulo] = useState("");
 
   useEffect(() => {
-    if (!autorizado) {
-      router.replace("/admin/login");
-      return;
-    }
+    verificarAdmin()
+      .then(() => setAutorizado(true))
+      .catch(() => {
+        setAutorizado(false);
+        router.replace("/admin/login");
+      });
+  }, [router]);
+
+  useEffect(() => {
+    if (!autorizado) return;
     listarLivros()
       .then(setLivros)
       .catch(() => setLivros([]));
-  }, [autorizado, router]);
+  }, [autorizado]);
 
-  function sair() {
-    limparToken(ADMIN_TOKEN_KEY);
+  async function sair() {
+    await logout();
     router.push("/admin/login");
   }
 
   async function handleCriarLivro(e: React.FormEvent) {
     e.preventDefault();
-    const token = obterToken(ADMIN_TOKEN_KEY);
-    if (!token) return;
     setMensagemLivro("");
     try {
-      const livro = await criarLivro(token, novoLivro);
+      const livro = await criarLivro(novoLivro);
       setLivros((prev) => [...prev, livro]);
       setMensagemLivro(`Livro "${livro.title}" criado com sucesso.`);
       setNovoLivro({
@@ -75,8 +78,6 @@ export default function AdminPainel() {
 
   async function handleCriarCapitulo(e: React.FormEvent) {
     e.preventDefault();
-    const token = obterToken(ADMIN_TOKEN_KEY);
-    if (!token) return;
     setMensagemCapitulo("");
     try {
       const { livroSlug, ...dados } = novoCapitulo;
@@ -84,7 +85,7 @@ export default function AdminPainel() {
         setMensagemCapitulo("Escolha um livro.");
         return;
       }
-      await criarCapitulo(token, livroSlug, dados);
+      await criarCapitulo(livroSlug, dados);
       setMensagemCapitulo(`Capítulo "${dados.title}" criado com sucesso.`);
       setNovoCapitulo({ livroSlug, slug: "", title: "", excerpt: "" });
     } catch (err) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { cadastrar, login, salvarToken, USER_TOKEN_KEY } from "@/lib/api";
+import { cadastrar, login } from "@/lib/api";
 
 export default function Cadastro() {
   const router = useRouter();
@@ -29,8 +29,7 @@ export default function Cadastro() {
     setCarregando(true);
     try {
       await cadastrar({ nome, email, senha });
-      const { token } = await login(email, senha);
-      salvarToken(USER_TOKEN_KEY, token);
+      await login(email, senha);
       router.push("/");
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao criar conta");
