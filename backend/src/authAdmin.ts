@@ -18,15 +18,17 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ erro: "Token não enviado" });
   }
 
+  let payload: { id: number };
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { id: number };
-    const usuario = await prisma.usuario.findUnique({ where: { id: payload.id } });
-    if (!usuario?.isAdmin) {
-      return res.status(403).json({ erro: "Acesso restrito a administradores" });
-    }
-    req.usuario = usuario;
-    next();
+    payload = jwt.verify(token, JWT_SECRET) as { id: number };
   } catch {
-    res.status(401).json({ erro: "Token inválido" });
+    return res.status(401).json({ erro: "Token inválido" });
   }
+
+  const usuario = await prisma.usuario.findUnique({ where: { id: payload.id } });
+  if (!usuario?.isAdmin) {
+    return res.status(403).json({ erro: "Acesso restrito a administradores" });
+  }
+  req.usuario = usuario;
+  next();
 }

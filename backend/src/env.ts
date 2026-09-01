@@ -12,3 +12,9 @@ if (!pepper || pepper.length < 64) {
   throw new Error("PASSWORD_PEPPER não está definida ou é curta demais (mínimo 64 caracteres) no .env");
 }
 export const PASSWORD_PEPPER = pepper;
+
+const csrfSecret = process.env.CSRF_SECRET;
+if (!csrfSecret) {
+  throw new Error("CSRF_SECRET não está definida no .env");
+}
+export const CSRF_SECRET = csrfSecret;
