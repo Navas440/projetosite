@@ -9,6 +9,7 @@ import { JWT_SECRET } from "./env";
 import { requireAdmin } from "./authAdmin";
 import rateLimit from "express-rate-limit";
 import { aplicarPepper } from "./pepper";
+import { generateCsrfToken, doubleCsrfProtection } from "./csrf";
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:3000", credentials: true }));
@@ -109,7 +110,12 @@ app.get("/admin/me", requireAdmin, (req: Request, res: Response) => {
   res.json({ id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin });
 });
 
-app.post("/admin/livros", requireAdmin, async (req: Request, res: Response) => {
+app.get("/csrf-token", (req: Request, res: Response) => {
+  const csrfToken = generateCsrfToken(req, res);
+  res.json({ csrfToken });
+});
+
+app.post("/admin/livros", doubleCsrfProtection, requireAdmin, async (req: Request, res: Response) => {
   const { slug, title, tagline, synopsis, gradient, progress, featured } = req.body;
 
   if (!slug || !title || !tagline || !synopsis || !gradient || progress === undefined) {
@@ -128,7 +134,7 @@ app.post("/admin/livros", requireAdmin, async (req: Request, res: Response) => {
   res.status(201).json(livro);
 });
 
-app.post("/admin/livros/:slug/capitulos", requireAdmin, async (req: Request, res: Response) => {
+app.post("/admin/livros/:slug/capitulos", doubleCsrfProtection, requireAdmin, async (req: Request, res: Response) => {
   const slugLivro = req.params.slug as string;
   const { slug, title, excerpt } = req.body;
 
@@ -154,9 +160,10 @@ app.post("/admin/livros/:slug/capitulos", requireAdmin, async (req: Request, res
   res.status(201).json(capitulo);
 });
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error & { statusCode?: number; status?: number }, req: Request, res: Response, next: NextFunction) => {
   console.error(err);
-  res.status(500).json({ erro: "Erro interno do servidor" });
+  const status = err.statusCode || err.status || 500;
+  res.status(status).json({ erro: status === 500 ? "Erro interno do servidor" : err.message });
 });
 
 const PORT = process.env.PORT || 5000;

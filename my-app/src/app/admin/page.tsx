@@ -7,6 +7,7 @@ import {
   criarLivro,
   listarLivros,
   logout,
+  obterCsrfToken,
   verificarAdmin,
   type Livro,
 } from "@/lib/api";
@@ -18,6 +19,7 @@ const inputClass =
 export default function AdminPainel() {
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [livros, setLivros] = useState<Livro[]>([]);
 
   const [novoLivro, setNovoLivro] = useState({
@@ -36,7 +38,11 @@ export default function AdminPainel() {
 
   useEffect(() => {
     verificarAdmin()
-      .then(() => setAutorizado(true))
+      .then(() => {
+        setAutorizado(true);
+        return obterCsrfToken();
+      })
+      .then(setCsrfToken)
       .catch(() => {
         setAutorizado(false);
         router.replace("/admin/login");
@@ -57,9 +63,10 @@ export default function AdminPainel() {
 
   async function handleCriarLivro(e: React.FormEvent) {
     e.preventDefault();
+    if (!csrfToken) return;
     setMensagemLivro("");
     try {
-      const livro = await criarLivro(novoLivro);
+      const livro = await criarLivro(novoLivro, csrfToken);
       setLivros((prev) => [...prev, livro]);
       setMensagemLivro(`Livro "${livro.title}" criado com sucesso.`);
       setNovoLivro({
@@ -78,6 +85,7 @@ export default function AdminPainel() {
 
   async function handleCriarCapitulo(e: React.FormEvent) {
     e.preventDefault();
+    if (!csrfToken) return;
     setMensagemCapitulo("");
     try {
       const { livroSlug, ...dados } = novoCapitulo;
@@ -85,7 +93,7 @@ export default function AdminPainel() {
         setMensagemCapitulo("Escolha um livro.");
         return;
       }
-      await criarCapitulo(livroSlug, dados);
+      await criarCapitulo(livroSlug, dados, csrfToken);
       setMensagemCapitulo(`Capítulo "${dados.title}" criado com sucesso.`);
       setNovoCapitulo({ livroSlug, slug: "", title: "", excerpt: "" });
     } catch (err) {

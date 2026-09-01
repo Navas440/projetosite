@@ -74,6 +74,13 @@ export async function verificarAdmin(): Promise<Usuario> {
   return res.json();
 }
 
+export async function obterCsrfToken(): Promise<string> {
+  const res = await fetch(`${API_URL}/csrf-token`, { credentials: "include" });
+  if (!res.ok) throw new Error(await parseErro(res));
+  const data = await res.json();
+  return data.csrfToken;
+}
+
 export async function cadastrar(dados: NovoUsuario): Promise<Usuario> {
   const res = await fetch(`${API_URL}/cadastro`, {
     method: "POST",
@@ -91,22 +98,22 @@ export async function listarLivros(): Promise<Livro[]> {
   return res.json();
 }
 
-export async function criarLivro(dados: NovoLivro): Promise<Livro> {
+export async function criarLivro(dados: NovoLivro, csrfToken: string): Promise<Livro> {
   const res = await fetch(`${API_URL}/admin/livros`, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
     body: JSON.stringify(dados),
   });
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
 
-export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo) {
+export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo, csrfToken: string) {
   const res = await fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
     body: JSON.stringify(dados),
   });
   if (!res.ok) throw new Error(await parseErro(res));
