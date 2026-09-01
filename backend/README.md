@@ -4,10 +4,27 @@ API em Express + TypeScript + Prisma (Postgres/Neon).
 
 ## Segurança
 
-- Senhas: hash com Argon2id, com um "pepper" (HMAC-SHA256 com segredo do `.env`) aplicado antes do hash.
-- Autenticação: JWT num cookie `httpOnly + sameSite=strict` (+ `secure` em produção). O JavaScript do navegador nunca tem acesso ao token.
-- Rate limiting em `/cadastro` e `/login` (10 tentativas/hora por IP).
-- CSRF: rotas que criam dados de verdade (`POST /admin/livros`, `POST /admin/livros/:slug/capitulos`) exigem um token CSRF (`csrf-csrf`, double-submit) além do cookie de sessão.
+Este projeto foi construído com atenção deliberada a práticas de segurança comuns em aplicações web com autenticação.
+
+**Autenticação**
+- Senhas com argon2id + pepper, não apenas hash simples.
+- JWT emitido no login e guardado num cookie httpOnly, secure (em produção) e sameSite=strict, nunca em localStorage. Isso remove o token do alcance de JavaScript, mitigando roubo de sessão via XSS.
+
+**CORS**
+- Origem restrita à URL exata do frontend (via variável de ambiente), com credentials habilitado. Nenhuma rota aceita requisições de qualquer origem.
+
+**CSRF**
+- Proteção via padrão double submit cookie (csrf-csrf), aplicada especificamente nas rotas que criam dados (`POST /admin/livros` e `POST /admin/livros/:slug/capitulos`).
+- Escopo definido de forma consciente: login, cadastro e logout ficaram fora da proteção porque forjar essas ações tem impacto baixo ou nulo; criar conteúdo é a ação que teria valor real para um atacante.
+
+**Rate limiting**
+- `/cadastro` e `/login` limitados a 10 tentativas/hora por IP.
+
+**Configuração**
+- Segredos (`JWT_SECRET`, `PASSWORD_PEPPER`, `CSRF_SECRET`) são validados na inicialização do servidor. Se algum estiver ausente ou fora do padrão esperado, o processo recusa subir com uma mensagem de erro clara, em vez de rodar silenciosamente com configuração insegura.
+
+**Tratamento de erros**
+- O middleware de autenticação distingue falha real de token (401) de qualquer outro erro, como indisponibilidade do banco de dados (500), evitando mascarar problemas de infraestrutura como tentativa de acesso não autorizado.
 
 ### Por que `/login`, `/cadastro` e `/logout` não têm proteção CSRF
 
