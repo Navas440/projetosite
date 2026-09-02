@@ -20,6 +20,9 @@ Este projeto foi construído com atenção deliberada a práticas de segurança 
 **Rate limiting**
 - `/cadastro` e `/login` limitados a 10 tentativas/hora por IP.
 
+**Headers de segurança**
+- Helmet aplica um conjunto de headers HTTP recomendados (CSP, X-Frame-Options, X-Content-Type-Options, HSTS, entre outros), reduzindo a superfície de ataques como clickjacking e MIME sniffing, com a configuração padrão do pacote.
+
 **Configuração**
 - Segredos (`JWT_SECRET`, `PASSWORD_PEPPER`, `CSRF_SECRET`) são validados na inicialização do servidor. Se algum estiver ausente ou fora do padrão esperado, o processo recusa subir com uma mensagem de erro clara, em vez de rodar silenciosamente com configuração insegura.
 

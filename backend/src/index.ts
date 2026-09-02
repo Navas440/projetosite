@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
@@ -12,6 +13,7 @@ import { aplicarPepper } from "./pepper";
 import { generateCsrfToken, doubleCsrfProtection } from "./csrf";
 
 const app = express();
+app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:3000", credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
