@@ -19,7 +19,7 @@ Este projeto foi construído com atenção deliberada a práticas de segurança 
 - Escopo definido de forma consciente: login, cadastro e logout ficaram fora da proteção porque forjar essas ações tem impacto baixo ou nulo; criar conteúdo é a ação que teria valor real para um atacante.
 
 **Rate limiting**
-- `/cadastro` e `/login` limitados a 10 tentativas/hora por IP.
+- `/login` limitado a 10 tentativas/hora por IP e `/cadastro` a 5/hora, em buckets independentes — tentativas de um não consomem o limite do outro.
 
 **Headers de segurança**
 - Helmet aplica um conjunto de headers HTTP recomendados (CSP, X-Frame-Options, X-Content-Type-Options, HSTS, entre outros), reduzindo a superfície de ataques como clickjacking e MIME sniffing, com a configuração padrão do pacote.

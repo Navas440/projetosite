@@ -25,9 +25,17 @@ const cookieOptions = {
   sameSite: "strict" as const,
 };
 
-const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 60 minutos
-  limit: 10, // 5 tentativas por IP nesse período
+const loginLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10, // brute-force de senha: janela mais generosa
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { erro: "Muitas tentativas. Tente novamente em 1 hora." },
+});
+
+const cadastroLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5, // criar conta em massa tem menos motivo legítimo pra repetir tanto
   standardHeaders: true,
   legacyHeaders: false,
   message: { erro: "Muitas tentativas. Tente novamente em 1 hora." },
@@ -53,7 +61,7 @@ app.get("/livros", async (req: Request, res: Response) => {
   res.json(livros);
 });
 
-app.post("/cadastro", authLimiter, async (req: Request, res: Response) => {
+app.post("/cadastro", cadastroLimiter, async (req: Request, res: Response) => {
   const { nome, email, senha } = req.body;
 
   if (!nome || !email || !senha) {
@@ -84,7 +92,7 @@ const senhaHash = await argon2.hash(senhaComPepper, {
   res.status(201).json({ id: usuario.id, nome: usuario.nome, email: usuario.email });
 });
 
-app.post("/login", authLimiter, async (req: Request, res: Response) => {
+app.post("/login", loginLimiter, async (req: Request, res: Response) => {
   const { email, senha } = req.body;
 
   if (!email || !senha) {
