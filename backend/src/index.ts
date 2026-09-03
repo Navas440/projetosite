@@ -11,6 +11,7 @@ import { requireAdmin } from "./authAdmin";
 import rateLimit from "express-rate-limit";
 import { aplicarPepper } from "./pepper";
 import { generateCsrfToken, doubleCsrfProtection } from "./csrf";
+import { gerarTokenOpaco, hashToken } from "./tokens";
 
 const app = express();
 app.use(helmet());
@@ -27,6 +28,17 @@ const cookieOptions = {
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 60 minutos
   limit: 10, // 5 tentativas por IP nesse período
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { erro: "Muitas tentativas. Tente novamente em 1 hora." },
+});
+
+const ACCESS_TOKEN_MAXAGE = 15 * 60 * 1000; // 15 min
+const REFRESH_TOKEN_MAXAGE = 30 * 24 * 60 * 60 * 1000; // 30 dias
+
+const refreshLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30, // bem mais generoso que authLimiter: renovação automática a cada 15min de uso ativo
   standardHeaders: true,
   legacyHeaders: false,
   message: { erro: "Muitas tentativas. Tente novamente em 1 hora." },
@@ -90,20 +102,69 @@ app.post("/login", authLimiter, async (req: Request, res: Response) => {
     return res.status(401).json({ erro: "Email ou senha inválidos" });
   }
 
-  const token = jwt.sign(
+  const accessToken = jwt.sign(
     { id: usuario.id, email: usuario.email },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "15m" }
   );
+  const { token: refreshTokenBruto, expiraEm } = gerarTokenOpaco(REFRESH_TOKEN_MAXAGE);
+  await prisma.refreshToken.create({
+    data: { usuarioId: usuario.id, tokenHash: hashToken(refreshTokenBruto), expiraEm },
+  });
 
-  res.cookie("token", token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie("access_token", accessToken, { ...cookieOptions, maxAge: ACCESS_TOKEN_MAXAGE });
+  res.cookie("refresh_token", refreshTokenBruto, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAXAGE });
   res.json({
     usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin },
   });
 });
 
-app.post("/logout", (req: Request, res: Response) => {
-  res.clearCookie("token", cookieOptions);
+app.post("/refresh", refreshLimiter, async (req: Request, res: Response) => {
+  const refreshTokenBruto = req.cookies?.refresh_token as string | undefined;
+  if (!refreshTokenBruto) {
+    return res.status(401).json({ erro: "Refresh token não enviado" });
+  }
+
+  const registro = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(refreshTokenBruto) } });
+  if (!registro || registro.revogadoEm || registro.expiraEm < new Date()) {
+    res.clearCookie("access_token", cookieOptions);
+    res.clearCookie("refresh_token", cookieOptions);
+    return res.status(401).json({ erro: "Sessão expirada, faça login novamente" });
+  }
+
+  const usuario = await prisma.usuario.findUnique({ where: { id: registro.usuarioId } });
+  if (!usuario) {
+    return res.status(401).json({ erro: "Sessão expirada, faça login novamente" });
+  }
+
+  const { token: novoRefreshBruto, expiraEm } = gerarTokenOpaco(REFRESH_TOKEN_MAXAGE);
+  await prisma.$transaction([
+    prisma.refreshToken.update({ where: { id: registro.id }, data: { revogadoEm: new Date() } }),
+    prisma.refreshToken.create({ data: { usuarioId: usuario.id, tokenHash: hashToken(novoRefreshBruto), expiraEm } }),
+  ]);
+
+  const novoAccessToken = jwt.sign(
+    { id: usuario.id, email: usuario.email },
+    JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+  res.cookie("access_token", novoAccessToken, { ...cookieOptions, maxAge: ACCESS_TOKEN_MAXAGE });
+  res.cookie("refresh_token", novoRefreshBruto, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAXAGE });
+  res.json({
+    usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, isAdmin: usuario.isAdmin },
+  });
+});
+
+app.post("/logout", async (req: Request, res: Response) => {
+  const refreshTokenBruto = req.cookies?.refresh_token as string | undefined;
+  if (refreshTokenBruto) {
+    await prisma.refreshToken.updateMany({
+      where: { tokenHash: hashToken(refreshTokenBruto), revogadoEm: null },
+      data: { revogadoEm: new Date() },
+    });
+  }
+  res.clearCookie("access_token", cookieOptions);
+  res.clearCookie("refresh_token", cookieOptions);
   res.status(204).end();
 });
 

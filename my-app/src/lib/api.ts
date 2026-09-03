@@ -53,6 +53,19 @@ async function parseErro(res: Response): Promise<string> {
   }
 }
 
+let refreshEmAndamento: Promise<boolean> | null = null;
+
+function tentarRefresh(): Promise<boolean> {
+  if (!refreshEmAndamento) {
+    refreshEmAndamento = fetch(`${API_URL}/refresh`, { method: "POST", credentials: "include" })
+      .then((res) => res.ok)
+      .finally(() => {
+        refreshEmAndamento = null;
+      });
+  }
+  return refreshEmAndamento;
+}
+
 export async function login(email: string, senha: string): Promise<LoginResponse> {
   const res = await fetch(`${API_URL}/login`, {
     method: "POST",
@@ -69,7 +82,10 @@ export async function logout(): Promise<void> {
 }
 
 export async function verificarAdmin(): Promise<Usuario> {
-  const res = await fetch(`${API_URL}/admin/me`, { credentials: "include" });
+  let res = await fetch(`${API_URL}/admin/me`, { credentials: "include" });
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await fetch(`${API_URL}/admin/me`, { credentials: "include" });
+  }
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
@@ -98,24 +114,38 @@ export async function listarLivros(): Promise<Livro[]> {
   return res.json();
 }
 
-export async function criarLivro(dados: NovoLivro, csrfToken: string): Promise<Livro> {
-  const res = await fetch(`${API_URL}/admin/livros`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-    body: JSON.stringify(dados),
-  });
+export async function criarLivro(dados: NovoLivro): Promise<Livro> {
+  async function tentar() {
+    const csrfToken = await obterCsrfToken();
+    return fetch(`${API_URL}/admin/livros`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(dados),
+    });
+  }
+  let res = await tentar();
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await tentar();
+  }
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
 
-export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo, csrfToken: string) {
-  const res = await fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-    body: JSON.stringify(dados),
-  });
+export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo) {
+  async function tentar() {
+    const csrfToken = await obterCsrfToken();
+    return fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(dados),
+    });
+  }
+  let res = await tentar();
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await tentar();
+  }
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }

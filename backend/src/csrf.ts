@@ -5,7 +5,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 export const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   getSecret: () => CSRF_SECRET,
-  getSessionIdentifier: (req) => req.cookies?.token ?? "",
+  getSessionIdentifier: (req) => req.cookies?.access_token ?? "",
   cookieName: isProd ? "__Host-vexon.csrf-token" : "vexon.csrf-token",
   cookieOptions: {
     sameSite: "strict",

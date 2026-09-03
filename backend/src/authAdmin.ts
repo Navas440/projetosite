@@ -13,7 +13,7 @@ declare global {
 }
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const token = req.cookies?.token as string | undefined;
+  const token = req.cookies?.access_token as string | undefined;
   if (!token) {
     return res.status(401).json({ erro: "Token não enviado" });
   }

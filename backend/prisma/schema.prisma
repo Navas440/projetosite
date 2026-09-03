@@ -13,12 +13,25 @@ datasource db {
 }
 
 model Usuario {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  email     String   @unique
-  senhaHash String
-  isAdmin   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            Int            @id @default(autoincrement())
+  nome          String
+  email         String         @unique
+  senhaHash     String
+  isAdmin       Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  usuarioId  Int
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+  tokenHash  String    @unique
+  criadoEm   DateTime  @default(now())
+  expiraEm   DateTime
+  revogadoEm DateTime?
+
+  @@index([usuarioId])
 }
 
 model Livro {
