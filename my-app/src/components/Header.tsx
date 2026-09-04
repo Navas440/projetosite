@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AuthStatus from "./AuthStatus";
 
 const navItems = [
   { name: "Início", href: "/" },
@@ -46,23 +47,7 @@ export default function Header() {
                        focus:outline-none focus:border-fuchsia-400"
           />
 
-          <Link
-            href="/login"
-            className="px-4 py-2 rounded-lg border border-fuchsia-500/60 bg-black/40 backdrop-blur-sm
-                       hover:bg-fuchsia-600 hover:border-fuchsia-300 transition-all duration-300
-                       neon-text text-sm shadow-[0_0_20px_#ff00ff]"
-          >
-            Login
-          </Link>
-
-          <Link
-            href="/cadastro"
-            className="hidden sm:inline-block px-4 py-2 rounded-lg border border-fuchsia-500/60 bg-black/40
-                       backdrop-blur-sm hover:bg-fuchsia-600 hover:border-fuchsia-300 transition-all
-                       duration-300 neon-text text-sm shadow-[0_0_20px_#ff00ff]"
-          >
-            Cadastro
-          </Link>
+          <AuthStatus />
         </div>
       </div>
     </header>

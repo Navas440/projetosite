@@ -5,10 +5,11 @@ export interface Usuario {
   nome: string;
   email: string;
   isAdmin: boolean;
+  bio: string | null;
 }
 
 interface LoginResponse {
-  usuario: Usuario;
+  usuario: { id: number; nome: string; email: string; isAdmin: boolean };
 }
 
 export interface Livro {
@@ -47,6 +48,12 @@ export interface Comentario {
   usuario: { id: number; nome: string };
 }
 
+export interface ProgressoLivro {
+  livro: { slug: string; title: string };
+  totalCapitulos: number;
+  capitulosLidos: number;
+}
+
 export interface NovoLivro {
   slug: string;
   title: string;
@@ -57,10 +64,18 @@ export interface NovoLivro {
   featured: boolean;
 }
 
+export type EdicaoLivro = Omit<NovoLivro, "slug">;
+
 export interface NovoCapitulo {
   slug: string;
   title: string;
   excerpt: string;
+}
+
+export interface EdicaoCapitulo {
+  title: string;
+  excerpt: string;
+  content: string;
 }
 
 export interface NovoUsuario {
@@ -164,6 +179,7 @@ export async function login(email: string, senha: string): Promise<LoginResponse
 
 export async function logout(): Promise<void> {
   await fetch(`${API_URL}/logout`, { method: "POST", credentials: "include" });
+  invalidarMeCache();
 }
 
 export async function verificarAdmin(): Promise<Usuario> {
@@ -221,6 +237,20 @@ export async function listarComentarios(slug: string, capSlug: string): Promise<
 
 // ---------- Leitor logado ----------
 
+export async function editarBio(bio: string): Promise<Usuario> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/me`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ bio }),
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+  invalidarMeCache();
+  return res.json();
+}
+
 export async function estaFavoritado(slug: string): Promise<boolean> {
   let res = await fetch(`${API_URL}/livros/${slug}/favorito`, { credentials: "include" });
   if (res.status === 401 && (await tentarRefresh())) {
@@ -253,6 +283,15 @@ export async function desfavoritar(slug: string): Promise<void> {
   if (!res.ok) throw new Error(await parseErro(res));
 }
 
+export async function listarFavoritos(): Promise<Livro[]> {
+  let res = await fetch(`${API_URL}/me/favoritos`, { credentials: "include" });
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await fetch(`${API_URL}/me/favoritos`, { credentials: "include" });
+  }
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
 export async function capituloLido(slug: string, capSlug: string): Promise<boolean> {
   let res = await fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/progresso`, { credentials: "include" });
   if (res.status === 401 && (await tentarRefresh())) {
@@ -283,6 +322,15 @@ export async function desmarcarLido(slug: string, capSlug: string): Promise<void
     })
   );
   if (!res.ok) throw new Error(await parseErro(res));
+}
+
+export async function obterProgresso(): Promise<ProgressoLivro[]> {
+  let res = await fetch(`${API_URL}/me/progresso`, { credentials: "include" });
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await fetch(`${API_URL}/me/progresso`, { credentials: "include" });
+  }
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
 }
 
 export async function criarComentario(slug: string, capSlug: string, texto: string): Promise<Comentario> {
@@ -324,6 +372,30 @@ export async function criarLivro(dados: NovoLivro): Promise<Livro> {
   return res.json();
 }
 
+export async function editarLivro(slug: string, dados: EdicaoLivro): Promise<Livro> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/admin/livros/${slug}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(dados),
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+export async function excluirLivro(slug: string): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/admin/livros/${slug}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
 export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo) {
   const res = await comCsrfERefresh((csrfToken) =>
     fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
@@ -333,6 +405,45 @@ export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo) {
       body: JSON.stringify(dados),
     })
   );
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+export async function editarCapitulo(slugLivro: string, capSlug: string, dados: EdicaoCapitulo): Promise<CapituloDetalhe> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos/${capSlug}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(dados),
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+export async function excluirCapitulo(slugLivro: string, capSlug: string): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos/${capSlug}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
+export async function uploadCapa(slug: string, arquivo: File): Promise<{ capaUrl: string }> {
+  const res = await comCsrfERefresh((csrfToken) => {
+    const formData = new FormData();
+    formData.append("capa", arquivo);
+    return fetch(`${API_URL}/admin/livros/${slug}/capa`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: formData,
+    });
+  });
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }

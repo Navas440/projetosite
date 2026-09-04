@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import {
   criarCapitulo,
   criarLivro,
+  editarLivro,
+  excluirLivro,
+  editarCapitulo,
+  excluirCapitulo,
+  uploadCapa,
   listarLivros,
+  obterLivro,
+  obterCapitulo,
   logout,
   verificarAdmin,
   type Livro,
+  type Capitulo,
 } from "@/lib/api";
 
 const inputClass =
@@ -31,8 +39,25 @@ export default function AdminPainel() {
   });
   const [mensagemLivro, setMensagemLivro] = useState("");
 
+  const [livroEditando, setLivroEditando] = useState<string | null>(null);
+  const [edicaoLivro, setEdicaoLivro] = useState({
+    title: "",
+    tagline: "",
+    synopsis: "",
+    gradient: "",
+    progress: 0,
+    featured: false,
+  });
+  const [mensagemEdicaoLivro, setMensagemEdicaoLivro] = useState("");
+  const [enviandoCapa, setEnviandoCapa] = useState<string | null>(null);
+
   const [novoCapitulo, setNovoCapitulo] = useState({ livroSlug: "", slug: "", title: "", excerpt: "" });
   const [mensagemCapitulo, setMensagemCapitulo] = useState("");
+  const [capitulosDoLivro, setCapitulosDoLivro] = useState<Capitulo[]>([]);
+
+  const [capituloEditando, setCapituloEditando] = useState<string | null>(null);
+  const [edicaoCapitulo, setEdicaoCapitulo] = useState({ title: "", excerpt: "", content: "" });
+  const [mensagemEdicaoCapitulo, setMensagemEdicaoCapitulo] = useState("");
 
   useEffect(() => {
     verificarAdmin()
@@ -49,6 +74,16 @@ export default function AdminPainel() {
       .then(setLivros)
       .catch(() => setLivros([]));
   }, [autorizado]);
+
+  useEffect(() => {
+    if (!novoCapitulo.livroSlug) {
+      setCapitulosDoLivro([]);
+      return;
+    }
+    obterLivro(novoCapitulo.livroSlug)
+      .then((livro) => setCapitulosDoLivro(livro.capitulos))
+      .catch(() => setCapitulosDoLivro([]));
+  }, [novoCapitulo.livroSlug]);
 
   async function sair() {
     await logout();
@@ -76,6 +111,52 @@ export default function AdminPainel() {
     }
   }
 
+  function iniciarEdicaoLivro(livro: Livro) {
+    setLivroEditando(livro.slug);
+    setEdicaoLivro({
+      title: livro.title,
+      tagline: livro.tagline,
+      synopsis: livro.synopsis,
+      gradient: livro.gradient,
+      progress: livro.progress,
+      featured: livro.featured,
+    });
+    setMensagemEdicaoLivro("");
+  }
+
+  async function handleSalvarEdicaoLivro(slug: string) {
+    setMensagemEdicaoLivro("");
+    try {
+      const atualizado = await editarLivro(slug, edicaoLivro);
+      setLivros((prev) => prev.map((l) => (l.slug === slug ? atualizado : l)));
+      setLivroEditando(null);
+    } catch (err) {
+      setMensagemEdicaoLivro(err instanceof Error ? err.message : "Erro ao editar livro");
+    }
+  }
+
+  async function handleExcluirLivro(slug: string) {
+    if (!confirm(`Excluir o livro "${slug}"? Isso apaga também seus capítulos, favoritos, progresso e comentários relacionados.`)) return;
+    try {
+      await excluirLivro(slug);
+      setLivros((prev) => prev.filter((l) => l.slug !== slug));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir livro");
+    }
+  }
+
+  async function handleUploadCapa(slug: string, arquivo: File) {
+    setEnviandoCapa(slug);
+    try {
+      const { capaUrl } = await uploadCapa(slug, arquivo);
+      setLivros((prev) => prev.map((l) => (l.slug === slug ? { ...l, capaUrl } : l)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao enviar capa");
+    } finally {
+      setEnviandoCapa(null);
+    }
+  }
+
   async function handleCriarCapitulo(e: React.FormEvent) {
     e.preventDefault();
     setMensagemCapitulo("");
@@ -85,11 +166,42 @@ export default function AdminPainel() {
         setMensagemCapitulo("Escolha um livro.");
         return;
       }
-      await criarCapitulo(livroSlug, dados);
+      const capitulo = await criarCapitulo(livroSlug, dados);
+      setCapitulosDoLivro((prev) => [...prev, capitulo]);
       setMensagemCapitulo(`Capítulo "${dados.title}" criado com sucesso.`);
       setNovoCapitulo({ livroSlug, slug: "", title: "", excerpt: "" });
     } catch (err) {
       setMensagemCapitulo(err instanceof Error ? err.message : "Erro ao criar capítulo");
+    }
+  }
+
+  async function iniciarEdicaoCapitulo(capSlug: string) {
+    const capitulo = await obterCapitulo(novoCapitulo.livroSlug, capSlug);
+    setCapituloEditando(capSlug);
+    setEdicaoCapitulo({ title: capitulo.title, excerpt: capitulo.excerpt, content: capitulo.content });
+    setMensagemEdicaoCapitulo("");
+  }
+
+  async function handleSalvarEdicaoCapitulo(capSlug: string) {
+    setMensagemEdicaoCapitulo("");
+    try {
+      await editarCapitulo(novoCapitulo.livroSlug, capSlug, edicaoCapitulo);
+      setCapitulosDoLivro((prev) =>
+        prev.map((c) => (c.slug === capSlug ? { ...c, title: edicaoCapitulo.title, excerpt: edicaoCapitulo.excerpt } : c))
+      );
+      setCapituloEditando(null);
+    } catch (err) {
+      setMensagemEdicaoCapitulo(err instanceof Error ? err.message : "Erro ao editar capítulo");
+    }
+  }
+
+  async function handleExcluirCapitulo(capSlug: string) {
+    if (!confirm(`Excluir o capítulo "${capSlug}"? Isso apaga também progresso e comentários relacionados.`)) return;
+    try {
+      await excluirCapitulo(novoCapitulo.livroSlug, capSlug);
+      setCapitulosDoLivro((prev) => prev.filter((c) => c.slug !== capSlug));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir capítulo");
     }
   }
 
@@ -166,6 +278,113 @@ export default function AdminPainel() {
         </section>
 
         <section className="p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+          <h2 className="text-2xl font-bold mb-6 neon-text">Livros existentes</h2>
+          {mensagemEdicaoLivro && <p className="text-sm text-red-400 mb-4">{mensagemEdicaoLivro}</p>}
+          <div className="flex flex-col gap-4">
+            {livros.map((livro) => (
+              <div key={livro.slug} className="p-4 rounded-xl bg-black/30 border border-white/10">
+                {livroEditando === livro.slug ? (
+                  <div className="flex flex-col gap-3">
+                    <input
+                      className={inputClass}
+                      placeholder="Título"
+                      value={edicaoLivro.title}
+                      onChange={(e) => setEdicaoLivro({ ...edicaoLivro, title: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Tagline"
+                      value={edicaoLivro.tagline}
+                      onChange={(e) => setEdicaoLivro({ ...edicaoLivro, tagline: e.target.value })}
+                    />
+                    <textarea
+                      className={inputClass}
+                      rows={3}
+                      placeholder="Sinopse"
+                      value={edicaoLivro.synopsis}
+                      onChange={(e) => setEdicaoLivro({ ...edicaoLivro, synopsis: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      placeholder="Gradiente CSS"
+                      value={edicaoLivro.gradient}
+                      onChange={(e) => setEdicaoLivro({ ...edicaoLivro, gradient: e.target.value })}
+                    />
+                    <input
+                      className={inputClass}
+                      type="number"
+                      min={0}
+                      max={100}
+                      placeholder="Progresso (%)"
+                      value={edicaoLivro.progress}
+                      onChange={(e) => setEdicaoLivro({ ...edicaoLivro, progress: Number(e.target.value) })}
+                    />
+                    <label className="flex items-center gap-2 text-gray-300 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={edicaoLivro.featured}
+                        onChange={(e) => setEdicaoLivro({ ...edicaoLivro, featured: e.target.checked })}
+                      />
+                      Livro em destaque (hero da home)
+                    </label>
+                    <div className="flex gap-3">
+                      <button onClick={() => handleSalvarEdicaoLivro(livro.slug)} className="vexon-btn">
+                        Salvar
+                      </button>
+                      <button
+                        onClick={() => setLivroEditando(null)}
+                        className="text-sm text-gray-400 hover:text-gray-200"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <p className="text-white font-medium">
+                        {livro.title} <span className="text-gray-500 text-sm">({livro.slug})</span>
+                      </p>
+                      {livro.capaUrl && (
+                        <p className="text-xs text-gray-500 mt-1 break-all">Capa: {livro.capaUrl}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <label className="text-xs text-fuchsia-400 hover:text-fuchsia-300 cursor-pointer">
+                        {enviandoCapa === livro.slug ? "Enviando..." : "Enviar capa"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={enviandoCapa === livro.slug}
+                          onChange={(e) => {
+                            const arquivo = e.target.files?.[0];
+                            if (arquivo) handleUploadCapa(livro.slug, arquivo);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => iniciarEdicaoLivro(livro)}
+                        className="text-sm text-fuchsia-400 hover:text-fuchsia-300"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleExcluirLivro(livro.slug)}
+                        className="text-sm text-red-400 hover:text-red-300"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="p-8 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
           <h2 className="text-2xl font-bold mb-6 neon-text">Novo capítulo</h2>
           <form onSubmit={handleCriarCapitulo} className="flex flex-col gap-4">
             <select
@@ -206,6 +425,77 @@ export default function AdminPainel() {
               Criar capítulo
             </button>
           </form>
+
+          {novoCapitulo.livroSlug && (
+            <div className="mt-8">
+              <h3 className="text-lg font-bold mb-4 neon-text">Capítulos deste livro</h3>
+              {mensagemEdicaoCapitulo && <p className="text-sm text-red-400 mb-4">{mensagemEdicaoCapitulo}</p>}
+              {capitulosDoLivro.length === 0 ? (
+                <p className="text-gray-400 text-sm">Nenhum capítulo ainda.</p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {capitulosDoLivro.map((cap) => (
+                    <div key={cap.slug} className="p-4 rounded-xl bg-black/30 border border-white/10">
+                      {capituloEditando === cap.slug ? (
+                        <div className="flex flex-col gap-3">
+                          <input
+                            className={inputClass}
+                            placeholder="Título"
+                            value={edicaoCapitulo.title}
+                            onChange={(e) => setEdicaoCapitulo({ ...edicaoCapitulo, title: e.target.value })}
+                          />
+                          <input
+                            className={inputClass}
+                            placeholder="Trecho/resumo"
+                            value={edicaoCapitulo.excerpt}
+                            onChange={(e) => setEdicaoCapitulo({ ...edicaoCapitulo, excerpt: e.target.value })}
+                          />
+                          <textarea
+                            className={inputClass}
+                            rows={10}
+                            placeholder="Texto completo do capítulo (parágrafos separados por linha em branco)"
+                            value={edicaoCapitulo.content}
+                            onChange={(e) => setEdicaoCapitulo({ ...edicaoCapitulo, content: e.target.value })}
+                          />
+                          <div className="flex gap-3">
+                            <button onClick={() => handleSalvarEdicaoCapitulo(cap.slug)} className="vexon-btn">
+                              Salvar
+                            </button>
+                            <button
+                              onClick={() => setCapituloEditando(null)}
+                              className="text-sm text-gray-400 hover:text-gray-200"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-white">
+                            {cap.order}. {cap.title}
+                          </span>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => iniciarEdicaoCapitulo(cap.slug)}
+                              className="text-sm text-fuchsia-400 hover:text-fuchsia-300"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleExcluirCapitulo(cap.slug)}
+                              className="text-sm text-red-400 hover:text-red-300"
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       </div>
     </div>
