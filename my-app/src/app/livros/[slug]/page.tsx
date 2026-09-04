@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { listarLivros, obterLivro } from "@/lib/api";
 import BookCover from "@/components/BookCover";
+import FavoriteButton from "@/components/FavoriteButton";
 
 export const revalidate = 60;
 
@@ -24,7 +25,10 @@ export default async function BookDetail(props: PageProps<"/livros/[slug]">) {
       <div className="max-w-4xl mx-auto">
         <BookCover book={book} className="w-full h-72 md:h-96 rounded-2xl" />
 
-        <h1 className="text-4xl md:text-5xl font-bold neon-text mt-8">{book.title}</h1>
+        <div className="flex items-center justify-between gap-4 mt-8">
+          <h1 className="text-4xl md:text-5xl font-bold neon-text">{book.title}</h1>
+          <FavoriteButton slug={book.slug} />
+        </div>
         <p className="text-gray-400 mt-2">{book.tagline}</p>
 
         <div className="mt-6 h-2 w-full rounded-full bg-white/10 overflow-hidden">

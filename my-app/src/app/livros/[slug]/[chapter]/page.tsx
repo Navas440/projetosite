@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { listarLivros, obterLivro, obterCapitulo } from "@/lib/api";
+import ChapterProgressToggle from "@/components/ChapterProgressToggle";
+import CommentSection from "@/components/CommentSection";
 
 export const revalidate = 60;
 
@@ -50,6 +52,12 @@ export default async function ChapterPage(props: PageProps<"/livros/[slug]/[chap
             <p className="text-gray-500 mt-6 italic">O restante deste capítulo ainda está sendo escrito.</p>
           )}
         </div>
+
+        <div className="mt-8">
+          <ChapterProgressToggle livroSlug={slug} capituloSlug={chapterSlug} />
+        </div>
+
+        <CommentSection livroSlug={slug} capituloSlug={chapterSlug} />
       </div>
     </div>
   );

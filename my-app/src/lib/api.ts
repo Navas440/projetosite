@@ -40,6 +40,13 @@ export interface LivroDetalhe extends Livro {
   capitulos: Capitulo[];
 }
 
+export interface Comentario {
+  id: number;
+  texto: string;
+  createdAt: string;
+  usuario: { id: number; nome: string };
+}
+
 export interface NovoLivro {
   slug: string;
   title: string;
@@ -84,6 +91,66 @@ function tentarRefresh(): Promise<boolean> {
   return refreshEmAndamento;
 }
 
+let csrfTokenCache: Promise<string> | null = null;
+
+function obterCsrfTokenCacheado(): Promise<string> {
+  if (!csrfTokenCache) csrfTokenCache = obterCsrfToken();
+  return csrfTokenCache;
+}
+
+function invalidarCsrfCache() {
+  csrfTokenCache = null;
+}
+
+/**
+ * Toda escrita autenticada passa por aqui: trata tanto access token expirado
+ * (401) quanto CSRF obsoleto (403) no mesmo laço, porque um não implica o
+ * outro isoladamente — o cookie do access token some sozinho quando expira,
+ * o que faz a primeira falha depois de expirado chegar como 403 (CSRF), não
+ * 401. Até 3 tentativas: CSRF obsoleto -> ainda sem access_token -> refresh -> sucesso.
+ */
+async function comCsrfERefresh(fazer: (csrfToken: string) => Promise<Response>): Promise<Response> {
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const csrfToken = await obterCsrfTokenCacheado();
+    const res = await fazer(csrfToken);
+    if (res.ok) return res;
+    if (res.status === 401 && (await tentarRefresh())) {
+      invalidarCsrfCache();
+      continue;
+    }
+    if (res.status === 403) {
+      invalidarCsrfCache();
+      continue;
+    }
+    return res;
+  }
+  const csrfToken = await obterCsrfTokenCacheado();
+  return fazer(csrfToken);
+}
+
+let meCache: Promise<Usuario> | null = null;
+
+export function invalidarMeCache() {
+  meCache = null;
+}
+
+export async function obterMe(): Promise<Usuario> {
+  if (!meCache) {
+    meCache = (async () => {
+      let res = await fetch(`${API_URL}/me`, { credentials: "include" });
+      if (res.status === 401 && (await tentarRefresh())) {
+        res = await fetch(`${API_URL}/me`, { credentials: "include" });
+      }
+      if (!res.ok) throw new Error(await parseErro(res));
+      return res.json();
+    })();
+    meCache.catch(() => {
+      meCache = null;
+    });
+  }
+  return meCache;
+}
+
 export async function login(email: string, senha: string): Promise<LoginResponse> {
   const res = await fetch(`${API_URL}/login`, {
     method: "POST",
@@ -126,6 +193,8 @@ export async function cadastrar(dados: NovoUsuario): Promise<Usuario> {
   return res.json();
 }
 
+// ---------- Leitura pública ----------
+
 export async function listarLivros(): Promise<Livro[]> {
   const res = await fetch(`${API_URL}/livros`);
   if (!res.ok) throw new Error(await parseErro(res));
@@ -144,38 +213,126 @@ export async function obterCapitulo(slug: string, capSlug: string): Promise<Capi
   return res.json();
 }
 
+export async function listarComentarios(slug: string, capSlug: string): Promise<Comentario[]> {
+  const res = await fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/comentarios`);
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+// ---------- Leitor logado ----------
+
+export async function estaFavoritado(slug: string): Promise<boolean> {
+  let res = await fetch(`${API_URL}/livros/${slug}/favorito`, { credentials: "include" });
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await fetch(`${API_URL}/livros/${slug}/favorito`, { credentials: "include" });
+  }
+  if (!res.ok) throw new Error(await parseErro(res));
+  const data = await res.json();
+  return data.favoritado;
+}
+
+export async function favoritar(slug: string): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/livros/${slug}/favorito`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
+export async function desfavoritar(slug: string): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/livros/${slug}/favorito`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
+export async function capituloLido(slug: string, capSlug: string): Promise<boolean> {
+  let res = await fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/progresso`, { credentials: "include" });
+  if (res.status === 401 && (await tentarRefresh())) {
+    res = await fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/progresso`, { credentials: "include" });
+  }
+  if (!res.ok) throw new Error(await parseErro(res));
+  const data = await res.json();
+  return data.lido;
+}
+
+export async function marcarLido(slug: string, capSlug: string): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/progresso`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
+export async function desmarcarLido(slug: string, capSlug: string): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/progresso`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
+export async function criarComentario(slug: string, capSlug: string, texto: string): Promise<Comentario> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}/comentarios`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ texto }),
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+export async function excluirComentario(id: number): Promise<void> {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/comentarios/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-CSRF-Token": csrfToken },
+    })
+  );
+  if (!res.ok) throw new Error(await parseErro(res));
+}
+
+// ---------- Admin ----------
+
 export async function criarLivro(dados: NovoLivro): Promise<Livro> {
-  async function tentar() {
-    const csrfToken = await obterCsrfToken();
-    return fetch(`${API_URL}/admin/livros`, {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/admin/livros`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
       body: JSON.stringify(dados),
-    });
-  }
-  let res = await tentar();
-  if (res.status === 401 && (await tentarRefresh())) {
-    res = await tentar();
-  }
+    })
+  );
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
 
 export async function criarCapitulo(slugLivro: string, dados: NovoCapitulo) {
-  async function tentar() {
-    const csrfToken = await obterCsrfToken();
-    return fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
+  const res = await comCsrfERefresh((csrfToken) =>
+    fetch(`${API_URL}/admin/livros/${slugLivro}/capitulos`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
       body: JSON.stringify(dados),
-    });
-  }
-  let res = await tentar();
-  if (res.status === 401 && (await tentarRefresh())) {
-    res = await tentar();
-  }
+    })
+  );
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
