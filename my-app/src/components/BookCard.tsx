@@ -1,8 +1,8 @@
 import Link from "next/link";
-import type { Book } from "@/data/books";
+import type { Livro } from "@/lib/api";
 import BookCover from "./BookCover";
 
-export default function BookCard({ book }: { book: Book }) {
+export default function BookCard({ book }: { book: Livro }) {
   return (
     <Link
       href={`/livros/${book.slug}`}

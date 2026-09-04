@@ -1,17 +1,17 @@
-import type { Book } from "@/data/books";
+import type { Livro } from "@/lib/api";
 
 export default function BookCover({
   book,
   className = "",
 }: {
-  book: Book;
+  book: Pick<Livro, "title" | "gradient" | "capaUrl">;
   className?: string;
 }) {
-  if (book.cover) {
+  if (book.capaUrl) {
     return (
       <div
         className={`bg-cover bg-center ${className}`}
-        style={{ backgroundImage: `url('${book.cover}')` }}
+        style={{ backgroundImage: `url('${book.capaUrl}')` }}
       />
     );
   }

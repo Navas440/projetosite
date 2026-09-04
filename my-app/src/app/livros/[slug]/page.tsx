@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { books, getBookBySlug } from "@/data/books";
+import { listarLivros, obterLivro } from "@/lib/api";
 import BookCover from "@/components/BookCover";
 
-export function generateStaticParams() {
-  return books.map((book) => ({ slug: book.slug }));
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const livros = await listarLivros();
+  return livros.map((book) => ({ slug: book.slug }));
 }
 
 export default async function BookDetail(props: PageProps<"/livros/[slug]">) {
   const { slug } = await props.params;
-  const book = getBookBySlug(slug);
-  if (!book) notFound();
+  let book;
+  try {
+    book = await obterLivro(slug);
+  } catch {
+    notFound();
+  }
 
   return (
     <div className="relative min-h-screen px-6 md:px-16 py-16 fade">
@@ -39,18 +46,18 @@ export default async function BookDetail(props: PageProps<"/livros/[slug]">) {
         <div id="capitulos" className="mt-10 scroll-mt-28">
           <h2 className="text-2xl font-bold neon mb-4">Capítulos</h2>
 
-          {book.chapters.length === 0 ? (
+          {book.capitulos.length === 0 ? (
             <p className="text-gray-400">Nenhum capítulo publicado ainda.</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {book.chapters.map((chapter, index) => (
+              {book.capitulos.map((chapter) => (
                 <li key={chapter.slug}>
                   <Link
                     href={`/livros/${book.slug}/${chapter.slug}`}
                     className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10
                                hover:border-fuchsia-400/60 hover:bg-white/10 transition-all duration-300"
                   >
-                    <span className="text-fuchsia-400 font-bold">{index + 1}</span>
+                    <span className="text-fuchsia-400 font-bold">{chapter.order}</span>
                     <span className="text-white font-medium">{chapter.title}</span>
                   </Link>
                 </li>

@@ -20,6 +20,24 @@ export interface Livro {
   gradient: string;
   progress: number;
   featured: boolean;
+  capaUrl: string | null;
+}
+
+export interface Capitulo {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  order: number;
+}
+
+export interface CapituloDetalhe extends Capitulo {
+  content: string;
+  livro: { slug: string; title: string };
+}
+
+export interface LivroDetalhe extends Livro {
+  capitulos: Capitulo[];
 }
 
 export interface NovoLivro {
@@ -110,6 +128,18 @@ export async function cadastrar(dados: NovoUsuario): Promise<Usuario> {
 
 export async function listarLivros(): Promise<Livro[]> {
   const res = await fetch(`${API_URL}/livros`);
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+export async function obterLivro(slug: string): Promise<LivroDetalhe> {
+  const res = await fetch(`${API_URL}/livros/${slug}`);
+  if (!res.ok) throw new Error(await parseErro(res));
+  return res.json();
+}
+
+export async function obterCapitulo(slug: string, capSlug: string): Promise<CapituloDetalhe> {
+  const res = await fetch(`${API_URL}/livros/${slug}/capitulos/${capSlug}`);
   if (!res.ok) throw new Error(await parseErro(res));
   return res.json();
 }
