@@ -3,6 +3,9 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
+import multer from "multer";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { fileTypeFromBuffer } from "file-type";
 import { prisma } from "./db";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
@@ -13,8 +16,9 @@ import rateLimit from "express-rate-limit";
 import { aplicarPepper } from "./pepper";
 import { generateCsrfToken, doubleCsrfProtection } from "./csrf";
 import { gerarTokenOpaco, hashToken } from "./tokens";
+import { isR2Configured, getR2Client } from "./r2";
 import { validate } from "./validate";
-import { comentarioSchema } from "./schemas";
+import { comentarioSchema, livroEditSchema, capituloEditSchema } from "./schemas";
 import { limiterPorUsuario } from "./rateLimiters";
 
 const app = express();
@@ -22,6 +26,9 @@ app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:3000", credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const TIPOS_IMAGEM_PERMITIDOS = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const cookieOptions = {
   httpOnly: true as const,
@@ -238,6 +245,118 @@ app.post("/admin/livros/:slug/capitulos", doubleCsrfProtection, requireAdmin, as
 
   res.status(201).json(capitulo);
 });
+
+app.put(
+  "/admin/livros/:slug",
+  doubleCsrfProtection,
+  requireAdmin,
+  validate(livroEditSchema),
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    const { title, tagline, synopsis, gradient, progress, featured } = req.body;
+    const atualizado = await prisma.livro.update({
+      where: { id: livro.id },
+      data: { title, tagline, synopsis, gradient, progress, featured: !!featured },
+    });
+    res.json(atualizado);
+  }
+);
+
+app.delete("/admin/livros/:slug", doubleCsrfProtection, requireAdmin, async (req: Request, res: Response) => {
+  const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+  if (!livro) {
+    return res.status(404).json({ erro: "Livro não encontrado" });
+  }
+  await prisma.livro.delete({ where: { id: livro.id } });
+  res.status(204).end();
+});
+
+app.put(
+  "/admin/livros/:slug/capitulos/:capSlug",
+  doubleCsrfProtection,
+  requireAdmin,
+  validate(capituloEditSchema),
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    const capitulo = await prisma.capitulo.findUnique({
+      where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+    });
+    if (!capitulo) {
+      return res.status(404).json({ erro: "Capítulo não encontrado" });
+    }
+    const { title, excerpt, content } = req.body;
+    const atualizado = await prisma.capitulo.update({
+      where: { id: capitulo.id },
+      data: { title, excerpt, content },
+    });
+    res.json(atualizado);
+  }
+);
+
+app.delete(
+  "/admin/livros/:slug/capitulos/:capSlug",
+  doubleCsrfProtection,
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    const capitulo = await prisma.capitulo.findUnique({
+      where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+    });
+    if (!capitulo) {
+      return res.status(404).json({ erro: "Capítulo não encontrado" });
+    }
+    await prisma.capitulo.delete({ where: { id: capitulo.id } });
+    res.status(204).end();
+  }
+);
+
+app.post(
+  "/admin/livros/:slug/capa",
+  doubleCsrfProtection,
+  requireAdmin,
+  upload.single("capa"),
+  async (req: Request, res: Response) => {
+    if (!isR2Configured()) {
+      return res.status(503).json({ erro: "Upload de imagem não configurado" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ erro: "Nenhum arquivo enviado" });
+    }
+
+    const tipo = await fileTypeFromBuffer(req.file.buffer);
+    if (!tipo || !TIPOS_IMAGEM_PERMITIDOS.includes(tipo.mime)) {
+      return res.status(400).json({ erro: "Arquivo não é uma imagem válida" });
+    }
+
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+
+    const key = `livros/${livro.slug}-${Date.now()}.${tipo.ext}`;
+    await getR2Client().send(
+      new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: key,
+        Body: req.file.buffer,
+        ContentType: tipo.mime,
+      })
+    );
+
+    const capaUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+    await prisma.livro.update({ where: { id: livro.id }, data: { capaUrl } });
+    res.json({ capaUrl });
+  }
+);
 
 // ---------- Favoritos ----------
 
