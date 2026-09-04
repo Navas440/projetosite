@@ -1,13 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { autenticar } from "./auth";
 
-export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const resultado = await autenticar(req);
   if (!resultado.ok) {
     return res.status(401).json({ erro: resultado.motivo === "sem_token" ? "Token não enviado" : "Token inválido" });
-  }
-  if (!resultado.usuario.isAdmin) {
-    return res.status(403).json({ erro: "Acesso restrito a administradores" });
   }
   req.usuario = resultado.usuario;
   next();
