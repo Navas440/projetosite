@@ -8,10 +8,14 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "./env";
 import { requireAdmin } from "./authAdmin";
+import { requireAuth } from "./requireAuth";
 import rateLimit from "express-rate-limit";
 import { aplicarPepper } from "./pepper";
 import { generateCsrfToken, doubleCsrfProtection } from "./csrf";
 import { gerarTokenOpaco, hashToken } from "./tokens";
+import { validate } from "./validate";
+import { comentarioSchema } from "./schemas";
+import { limiterPorUsuario } from "./rateLimiters";
 
 const app = express();
 app.use(helmet());
@@ -51,6 +55,10 @@ const refreshLimiter = rateLimit({
   legacyHeaders: false,
   message: { erro: "Muitas tentativas. Tente novamente em 1 hora." },
 });
+
+const favoritoLimiter = limiterPorUsuario(60 * 60 * 1000, 60);
+const progressoLimiter = limiterPorUsuario(60 * 60 * 1000, 120);
+const comentarioLimiter = limiterPorUsuario(60 * 60 * 1000, 20);
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ status: "Backend rodando" });
@@ -229,6 +237,216 @@ app.post("/admin/livros/:slug/capitulos", doubleCsrfProtection, requireAdmin, as
   });
 
   res.status(201).json(capitulo);
+});
+
+// ---------- Favoritos ----------
+
+app.get("/livros/:slug/favorito", requireAuth, async (req: Request, res: Response) => {
+  const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+  if (!livro) {
+    return res.status(404).json({ erro: "Livro não encontrado" });
+  }
+  const favorito = await prisma.favorito.findUnique({
+    where: { usuarioId_livroId: { usuarioId: req.usuario!.id, livroId: livro.id } },
+  });
+  res.json({ favoritado: !!favorito });
+});
+
+app.post(
+  "/livros/:slug/favorito",
+  doubleCsrfProtection,
+  requireAuth,
+  favoritoLimiter,
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    await prisma.favorito.upsert({
+      where: { usuarioId_livroId: { usuarioId: req.usuario!.id, livroId: livro.id } },
+      update: {},
+      create: { usuarioId: req.usuario!.id, livroId: livro.id },
+    });
+    res.json({ favoritado: true });
+  }
+);
+
+app.delete(
+  "/livros/:slug/favorito",
+  doubleCsrfProtection,
+  requireAuth,
+  favoritoLimiter,
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    await prisma.favorito.deleteMany({ where: { usuarioId: req.usuario!.id, livroId: livro.id } });
+    res.status(204).end();
+  }
+);
+
+app.get("/me/favoritos", requireAuth, async (req: Request, res: Response) => {
+  const favoritos = await prisma.favorito.findMany({
+    where: { usuarioId: req.usuario!.id },
+    include: { livro: true },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(favoritos.map((f) => f.livro));
+});
+
+// ---------- Progresso de leitura ----------
+
+app.get("/livros/:slug/capitulos/:capSlug/progresso", requireAuth, async (req: Request, res: Response) => {
+  const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+  if (!livro) {
+    return res.status(404).json({ erro: "Livro não encontrado" });
+  }
+  const capitulo = await prisma.capitulo.findUnique({
+    where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+  });
+  if (!capitulo) {
+    return res.status(404).json({ erro: "Capítulo não encontrado" });
+  }
+  const leitura = await prisma.leituraCapitulo.findUnique({
+    where: { usuarioId_capituloId: { usuarioId: req.usuario!.id, capituloId: capitulo.id } },
+  });
+  res.json({ lido: !!leitura });
+});
+
+app.post(
+  "/livros/:slug/capitulos/:capSlug/progresso",
+  doubleCsrfProtection,
+  requireAuth,
+  progressoLimiter,
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    const capitulo = await prisma.capitulo.findUnique({
+      where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+    });
+    if (!capitulo) {
+      return res.status(404).json({ erro: "Capítulo não encontrado" });
+    }
+    await prisma.leituraCapitulo.upsert({
+      where: { usuarioId_capituloId: { usuarioId: req.usuario!.id, capituloId: capitulo.id } },
+      update: {},
+      create: { usuarioId: req.usuario!.id, capituloId: capitulo.id },
+    });
+    res.json({ lido: true });
+  }
+);
+
+app.delete(
+  "/livros/:slug/capitulos/:capSlug/progresso",
+  doubleCsrfProtection,
+  requireAuth,
+  progressoLimiter,
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    const capitulo = await prisma.capitulo.findUnique({
+      where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+    });
+    if (!capitulo) {
+      return res.status(404).json({ erro: "Capítulo não encontrado" });
+    }
+    await prisma.leituraCapitulo.deleteMany({ where: { usuarioId: req.usuario!.id, capituloId: capitulo.id } });
+    res.status(204).end();
+  }
+);
+
+app.get("/me/progresso", requireAuth, async (req: Request, res: Response) => {
+  const usuarioId = req.usuario!.id;
+
+  const totais = await prisma.capitulo.groupBy({ by: ["livroId"], _count: true });
+  const leituras = await prisma.leituraCapitulo.findMany({
+    where: { usuarioId },
+    include: { capitulo: { select: { livroId: true, livro: { select: { slug: true, title: true } } } } },
+  });
+
+  const lidosPorLivro = new Map<number, number>();
+  const livroInfoPorId = new Map<number, { slug: string; title: string }>();
+  for (const leitura of leituras) {
+    const { livroId, livro } = leitura.capitulo;
+    lidosPorLivro.set(livroId, (lidosPorLivro.get(livroId) ?? 0) + 1);
+    livroInfoPorId.set(livroId, livro);
+  }
+
+  const livrosComTotal = await prisma.livro.findMany({ select: { id: true, slug: true, title: true } });
+  const livroInfoPorTotal = new Map(livrosComTotal.map((l) => [l.id, { slug: l.slug, title: l.title }]));
+
+  const progresso = totais.map((t) => ({
+    livro: livroInfoPorId.get(t.livroId) ?? livroInfoPorTotal.get(t.livroId)!,
+    totalCapitulos: t._count,
+    capitulosLidos: lidosPorLivro.get(t.livroId) ?? 0,
+  }));
+
+  res.json(progresso);
+});
+
+// ---------- Comentários ----------
+
+app.get("/livros/:slug/capitulos/:capSlug/comentarios", async (req: Request, res: Response) => {
+  const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+  if (!livro) {
+    return res.status(404).json({ erro: "Livro não encontrado" });
+  }
+  const capitulo = await prisma.capitulo.findUnique({
+    where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+  });
+  if (!capitulo) {
+    return res.status(404).json({ erro: "Capítulo não encontrado" });
+  }
+  const comentarios = await prisma.comentario.findMany({
+    where: { capituloId: capitulo.id },
+    select: { id: true, texto: true, createdAt: true, usuario: { select: { id: true, nome: true } } },
+    orderBy: { createdAt: "asc" },
+    take: 100,
+  });
+  res.json(comentarios);
+});
+
+app.post(
+  "/livros/:slug/capitulos/:capSlug/comentarios",
+  doubleCsrfProtection,
+  requireAuth,
+  comentarioLimiter,
+  validate(comentarioSchema),
+  async (req: Request, res: Response) => {
+    const livro = await prisma.livro.findUnique({ where: { slug: req.params.slug as string } });
+    if (!livro) {
+      return res.status(404).json({ erro: "Livro não encontrado" });
+    }
+    const capitulo = await prisma.capitulo.findUnique({
+      where: { livroId_slug: { livroId: livro.id, slug: req.params.capSlug as string } },
+    });
+    if (!capitulo) {
+      return res.status(404).json({ erro: "Capítulo não encontrado" });
+    }
+    const comentario = await prisma.comentario.create({
+      data: { texto: req.body.texto, usuarioId: req.usuario!.id, capituloId: capitulo.id },
+      select: { id: true, texto: true, createdAt: true, usuario: { select: { id: true, nome: true } } },
+    });
+    res.status(201).json(comentario);
+  }
+);
+
+app.delete("/comentarios/:id", doubleCsrfProtection, requireAuth, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const comentario = await prisma.comentario.findUnique({ where: { id } });
+  if (!comentario) {
+    return res.status(404).json({ erro: "Comentário não encontrado" });
+  }
+  if (comentario.usuarioId !== req.usuario!.id && !req.usuario!.isAdmin) {
+    return res.status(403).json({ erro: "Sem permissão para apagar esse comentário" });
+  }
+  await prisma.comentario.delete({ where: { id } });
+  res.status(204).end();
 });
 
 app.use((err: Error & { statusCode?: number; status?: number }, req: Request, res: Response, next: NextFunction) => {
